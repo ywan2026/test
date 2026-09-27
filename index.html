@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Keling, tanishamiz!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Onest:wght@400;500;700&display=swap" rel="stylesheet" />
+  <!-- Supabase JS 라이브러리 (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --lapis: #1d3a8a;
+      --lapis-deep: #142a66;
+      --turquoise: #17a2a8;
+      --saffron: #e8a33d;
+      --tile: #f5f8fb;
+      --ink: #1a2233;
+      --muted: #5b6678;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Onest", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--tile);
+      line-height: 1.55;
+    }
+    /* 사마르칸트 타일에서 따온 기하학 무늬 띠 */
+    .band {
+      height: 64px;
+      background:
+        conic-gradient(from 45deg at 50% 50%, var(--turquoise) 0 25%, var(--lapis) 0 50%, var(--turquoise) 0 75%, var(--lapis) 0) 0 0 / 32px 32px;
+      border-bottom: 6px solid var(--saffron);
+    }
+    main { max-width: 640px; margin: 0 auto; padding: 40px 20px 80px; }
+    h1 {
+      font-family: "Unbounded", sans-serif;
+      font-weight: 800;
+      font-size: clamp(2rem, 7vw, 3rem);
+      line-height: 1.1;
+      color: var(--lapis-deep);
+      margin: 0 0 12px;
+    }
+    .lead { color: var(--muted); margin: 0 0 32px; font-size: 1.05rem; }
+    form {
+      background: #fff;
+      border: 2px solid var(--lapis);
+      border-radius: 4px 20px 4px 20px;
+      padding: 24px;
+    }
+    label { display: block; font-weight: 700; margin-bottom: 6px; }
+    .hint { font-weight: 400; color: var(--muted); font-size: .9rem; }
+    input, textarea {
+      width: 100%;
+      font: inherit;
+      padding: 12px 14px;
+      border: 1.5px solid #c8d1de;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      background: #fff;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    input:focus, textarea:focus, button:focus-visible {
+      outline: 3px solid var(--saffron);
+      outline-offset: 2px;
+      border-color: var(--lapis);
+    }
+    button {
+      font: inherit;
+      font-weight: 700;
+      background: var(--lapis);
+      color: #fff;
+      border: 0;
+      border-radius: 8px;
+      padding: 12px 22px;
+      cursor: pointer;
+    }
+    button:hover { background: var(--lapis-deep); }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status { margin: 14px 0 0; min-height: 1.5em; font-weight: 500; }
+    #status.ok { color: #0f7a5a; }
+    #status.err { color: #b3261e; }
+    h2 {
+      font-family: "Unbounded", sans-serif;
+      font-weight: 600;
+      font-size: 1.3rem;
+      color: var(--lapis-deep);
+      margin: 48px 0 16px;
+    }
+    #list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    #list li {
+      background: #fff;
+      border-left: 6px solid var(--turquoise);
+      padding: 14px 18px;
+      border-radius: 0 10px 10px 0;
+    }
+    #list li:nth-child(3n+2) { border-left-color: var(--saffron); }
+    #list li:nth-child(3n) { border-left-color: var(--lapis); }
+    .nick { font-weight: 700; font-size: 1.1rem; }
+    .intro { margin: 4px 0 0; white-space: pre-wrap; }
+    .empty { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="band" aria-hidden="true"></div>
+  <main>
+    <h1>Keling, tanishamiz!</h1>
+    <p class="lead">Taxallusingizni va oʻzingiz haqingizda qisqacha yozing.</p>
+
+    <form id="introForm">
+      <label for="nickname">Taxallus <span class="hint">(30 belgigacha)</span></label>
+      <input id="nickname" maxlength="30" required placeholder="Masalan: Dilnoza" />
+
+      <label for="intro">Oʻzingiz haqingizda <span class="hint">(300 belgigacha)</span></label>
+      <textarea id="intro" maxlength="300" required placeholder="Qaysi fanni oʻqitasiz? Nimaga qiziqasiz?"></textarea>
+
+      <button type="submit" id="submitBtn">Yuborish</button>
+      <p id="status" role="status"></p>
+    </form>
+
+    <h2>Ishtirokchilar</h2>
+    <ul id="list"><li class="empty">Yuklanmoqda…</li></ul>
+  </main>
+
+  <script>
+    // ⚠️ 여기에 본인 Supabase 프로젝트 정보를 넣으세요 (Project Settings → API)
+    const SUPABASE_URL = "https://YOUR-PROJECT-ID.supabase.co";
+    const SUPABASE_KEY = "YOUR-ANON-OR-PUBLISHABLE-KEY";
+
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const form = document.getElementById("introForm");
+    const statusEl = document.getElementById("status");
+    const btn = document.getElementById("submitBtn");
+    const list = document.getElementById("list");
+
+    // 목록 불러오기 (SELECT)
+    async function loadList() {
+      const { data, error } = await db
+        .from("introductions")
+        .select("nickname, intro, created_at")
+        .order("created_at", { ascending: false });
+
+      list.innerHTML = "";
+      if (error) {
+        list.innerHTML = '<li class="empty">Roʻyxatni yuklab boʻlmadi. Sozlamalarni tekshiring.</li>';
+        console.error(error);
+        return;
+      }
+      if (data.length === 0) {
+        list.innerHTML = '<li class="empty">Hali hech kim yozmadi. Birinchi boʻling!</li>';
+        return;
+      }
+      for (const row of data) {
+        const li = document.createElement("li");
+        const nick = document.createElement("div");
+        nick.className = "nick";
+        nick.textContent = row.nickname;       // textContent로 넣어 XSS 방지
+        const intro = document.createElement("p");
+        intro.className = "intro";
+        intro.textContent = row.intro;
+        li.append(nick, intro);
+        list.append(li);
+      }
+    }
+
+    // 제출하기 (INSERT)
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nickname = document.getElementById("nickname").value.trim();
+      const intro = document.getElementById("intro").value.trim();
+      if (!nickname || !intro) return;
+
+      btn.disabled = true;
+      statusEl.className = "";
+      statusEl.textContent = "Yuborilmoqda…";
+
+      const { error } = await db.from("introductions").insert({ nickname, intro });
+
+      btn.disabled = false;
+      if (error) {
+        statusEl.className = "err";
+        statusEl.textContent = "Yuborilmadi: " + error.message;
+        console.error(error);
+        return;
+      }
+      statusEl.className = "ok";
+      statusEl.textContent = "Yuborildi. Rahmat!";
+      form.reset();
+      loadList();
+    });
+
+    loadList();
+  </script>
+</body>
+</html>
